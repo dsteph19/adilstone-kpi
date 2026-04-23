@@ -165,7 +165,8 @@ function Dashboard() {
   const ytdPlacements = placements.filter(function(p) { return p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
   const engaged = placements.filter(function(p) { return p.placement_type === "Engaged" && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
   const suppTotal = suppRevenue.filter(function(r) { return r.year === 2026; }).reduce(function(s, r) { return s + (r.amount || 0); }, 0);
-  const ytd = ytdPlacements + suppTotal;
+  const engagementFeeTotal = jobOrders.filter(function(j) { return j.engagement_fee_year === 2026; }).reduce(function(s, j) { return s + (j.engagement_fee || 0); }, 0);
+  const ytd = ytdPlacements + suppTotal + engagementFeeTotal;
   const totalPlaced = placements.length;
   const totalInt = placements.filter(function(p) { return p.intentional; }).length;
   const openJOs = jobOrders.filter(function(j) { return j.status === "Open"; }).length;
@@ -178,16 +179,18 @@ function Dashboard() {
   const quarters = ["Q1", "Q2", "Q3", "Q4"].map(function(q) {
     var placementLanded = placements.filter(function(p) { return p.quarter === q && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
     var suppLanded = suppRevenue.filter(function(r) { return r.quarter === q && r.year === 2026; }).reduce(function(s, r) { return s + (r.amount || 0); }, 0);
-    return { q: q, landed: placementLanded + suppLanded, goal: qGoals[q] };
+    var engagementLanded = jobOrders.filter(function(j) { return j.engagement_fee_quarter === q && j.engagement_fee_year === 2026; }).reduce(function(s, j) { return s + (j.engagement_fee || 0); }, 0);
+    return { q: q, landed: placementLanded + suppLanded + engagementLanded, goal: qGoals[q] };
   });
 
   const regions = ["Americas", "EMEA", "APAC"].map(function(r) {
     var suppRegion = suppRevenue.filter(function(s) { return s.region === r && s.year === 2026; }).reduce(function(acc, s) { return acc + (s.amount || 0); }, 0);
+    var engagementRegion = jobOrders.filter(function(j) { return j.region === r && j.engagement_fee_year === 2026; }).reduce(function(s, j) { return s + (j.engagement_fee || 0); }, 0);
     return {
       r: r,
       count: placements.filter(function(p) { return p.region === r; }).length,
       intentional: placements.filter(function(p) { return p.region === r && p.intentional; }).length,
-      revenue: placements.filter(function(p) { return p.region === r; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0) + suppRegion,
+      revenue: placements.filter(function(p) { return p.region === r; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0) + suppRegion + engagementRegion,
     };
   });
 
@@ -199,6 +202,7 @@ function Dashboard() {
           <StatCard label="Revenue Goal" value={fmtDollar(REVENUE_GOAL)} />
           <StatCard label="YTD Landed" value={fmtDollar(ytd)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
           <StatCard label="Engaged" value={fmtDollar(engaged)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
+          <StatCard label="Engagement Fees" value={fmtDollar(engagementFeeTotal)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} sub="upfront fees collected" />
           <StatCard label="Supplemental" value={fmtDollar(suppTotal)} color={B.muted} sub="non-placement revenue" />
           <StatCard label="% of Goal" value={fmtPct(ytd, REVENUE_GOAL)} sub={fmtDollar(ytd) + " / " + fmtDollar(REVENUE_GOAL)} color={B.lightBlue} light={B.lightBlueLight} border={B.lightBlueBorder} />
         </div>
