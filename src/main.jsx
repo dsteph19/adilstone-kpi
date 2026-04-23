@@ -39,9 +39,7 @@ const B = {
   muted:"#64748b", border:"#e2e8f0", surface:"#f8fafc",
 };
 
-const REVENUE_GOAL = 850000;
-const PLACEMENT_GOAL = 32;
-const INTENTIONAL_GOAL = 14;
+
 const WEEK_START = "2026-04-20";
 
 function fmtDollar(n) { return "$" + Number(n || 0).toLocaleString(); }
@@ -133,18 +131,33 @@ function ErrBanner({ msg }) {
 function Dashboard() {
   const [placements, setPlacements] = useState([]);
   const [jobOrders, setJobOrders] = useState([]);
+  const [goals, setGoals] = useState({ revenue_goal: 0, placement_goal: 0, intentional_goal: 0 });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   useEffect(function() {
-    Promise.all([sbGet("placements"), sbGet("job_orders")])
-      .then(function(results) { setPlacements(results[0]); setJobOrders(results[1]); })
+    Promise.all([
+      sbGet("placements"),
+      sbGet("job_orders"),
+      sbGet("settings"),
+    ])
+      .then(function(results) {
+        setPlacements(results[0]);
+        setJobOrders(results[1]);
+        var g = {};
+        results[2].forEach(function(row) { g[row.key] = Number(row.value); });
+        setGoals(g);
+      })
       .catch(function(e) { setErr("Could not load dashboard: " + e.message); })
       .finally(function() { setLoading(false); });
   }, []);
 
   if (loading) return <Spinner />;
   if (err) return <ErrBanner msg={err} />;
+
+  var REVENUE_GOAL = goals.revenue_goal || 0;
+  var PLACEMENT_GOAL = goals.placement_goal || 0;
+  var INTENTIONAL_GOAL = goals.intentional_goal || 0;
 
   const ytd = placements.filter(function(p) { return p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
   const engaged = placements.filter(function(p) { return p.placement_type === "Engaged" && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
