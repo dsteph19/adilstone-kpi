@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ReactDOM from "react-dom/client";
 
 const PROXY = "/.netlify/functions/supabase-proxy";
 
@@ -1242,4 +1243,5 @@ export default function App() {
       {tab === "Setup" && <SetupGuide />}
     </div>
   );
-}
+}const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
