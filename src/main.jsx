@@ -1,7 +1,32 @@
 import { useState, useEffect } from "react";
 
-const SUPABASE_URL = "https://yzsudrdfcebhoxfpdtys.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6c3VkcmRmY2ViaG94ZnBkdHlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Nzk0MTUsImV4cCI6MjA5MjQ1NTQxNX0._zzgn0dNYNUhbKIslm7n67R05cauYl-Lqp3JuF9b0CQ";
+const PROXY = "/.netlify/functions/supabase-proxy";
+
+async function sbGet(table, qs) {
+  const params = "table=" + table + (qs ? "&qs=" + encodeURIComponent(qs) : "");
+  const res = await fetch(PROXY + "?" + params);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function sbPost(table, body) {
+  const res = await fetch(PROXY + "?table=" + table + "&qs=select=*", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Prefer": "return=representation" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json().catch(() => null);
+}
+
+async function sbPatch(table, qs, body) {
+  const res = await fetch(PROXY + "?table=" + table + "&qs=" + encodeURIComponent(qs), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "Prefer": "return=minimal" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
 
 async function sbGet(table, qs) {
   const url = SUPABASE_URL + "/rest/v1/" + table + "?select=*" + (qs ? "&" + qs : "");
