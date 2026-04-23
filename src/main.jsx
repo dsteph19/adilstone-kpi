@@ -174,10 +174,11 @@ function Dashboard() {
   const totalPlacements = jobOrders.reduce(function(s, j) { return s + (j.total_placements || 0); }, 0);
   const convRate = totalFRI ? Math.round((totalPlacements / totalFRI) * 100) : 0;
 
+  const qGoals = { Q1: goals.q1_goal || REVENUE_GOAL/4, Q2: goals.q2_goal || REVENUE_GOAL/4, Q3: goals.q3_goal || REVENUE_GOAL/4, Q4: goals.q4_goal || REVENUE_GOAL/4 };
   const quarters = ["Q1", "Q2", "Q3", "Q4"].map(function(q) {
     var placementLanded = placements.filter(function(p) { return p.quarter === q && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
     var suppLanded = suppRevenue.filter(function(r) { return r.quarter === q && r.year === 2026; }).reduce(function(s, r) { return s + (r.amount || 0); }, 0);
-    return { q: q, landed: placementLanded + suppLanded };
+    return { q: q, landed: placementLanded + suppLanded, goal: qGoals[q] };
   });
 
   const regions = ["Americas", "EMEA", "APAC"].map(function(r) {
@@ -215,8 +216,8 @@ function Dashboard() {
               <div key={item.q} style={{ background: B.surface, border: "1px solid " + B.border, borderRadius: 10, padding: "12px 14px" }}>
                 <div style={{ fontSize: 11, color: B.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.q}</div>
                 <div style={{ fontSize: 17, fontWeight: 700, color: B.darkBlue, margin: "4px 0" }}>{fmtDollar(item.landed)}</div>
-                <PBar value={item.landed} max={REVENUE_GOAL / 4} color={B.lightBlue} />
-                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{fmtPct(item.landed, REVENUE_GOAL / 4)} of target</div>
+                <PBar value={item.landed} max={item.goal} color={B.lightBlue} />
+                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{fmtPct(item.landed, item.goal)} of target</div>
               </div>
             );
           })}
