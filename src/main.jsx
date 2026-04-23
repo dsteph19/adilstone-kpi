@@ -135,12 +135,26 @@ function ErrBanner({ msg }) {
 function Dashboard() {
   const [placements, setPlacements] = useState([]);
   const [jobOrders, setJobOrders] = useState([]);
+  const [goals, setGoals] = useState({ revenue_goal: 0, placement_goal: 0, intentional_goal: 0 });
+  const [suppRevenue, setSuppRevenue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   useEffect(function() {
-    Promise.all([sbGet("placements"), sbGet("job_orders")])
-      .then(function(results) { setPlacements(results[0]); setJobOrders(results[1]); })
+    Promise.all([
+      sbGet("placements"),
+      sbGet("job_orders"),
+      sbGet("settings"),
+      sbGet("supplemental_revenue"),
+    ])
+      .then(function(results) {
+        setPlacements(results[0]);
+        setJobOrders(results[1]);
+        var g = {};
+        results[2].forEach(function(row) { g[row.key] = Number(row.value); });
+        setGoals(g);
+        setSuppRevenue(results[3]);
+      })
       .catch(function(e) { setErr("Could not load dashboard: " + e.message); })
       .finally(function() { setLoading(false); });
   }, []);
@@ -148,9 +162,14 @@ function Dashboard() {
   if (loading) return <Spinner />;
   if (err) return <ErrBanner msg={err} />;
 
-  const ytd = placements.filter(function(p) { return p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
-  const engaged = placements.filter(function(p) { return p.placement_type === "Engaged" && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
-  const supplemental = placements.filter(function(p) { return p.placement_type === "Supplemental" && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
+  var REVENUE_GOAL = goals.revenue_goal || 0;
+  var PLACEMENT_GOAL = goals.placement_goal || 0;
+  var INTENTIONAL_GOAL = goals.intentional_goal || 0;
+
+  const ytdPlacements = placements.filter(function(p) { return p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
+  const suppTotal = suppRevenue.filter(function(r) { return r.year === 2026; }).reduce(function(s, r) { return s + (r.amount || 0); }, 0);
+  const engagementFeeTotal = jobOrders.filter(function(j) { return j.engagement_fee_year === 2026; }).reduce(function(s, j) { return s + (j.engagement_fee || 0); }, 0);
+  const ytd = ytdPlacements + suppTotal + engagementFeeTotal;
   const totalPlaced = placements.length;
   const totalInt = placements.filter(function(p) { return p.intentional; }).length;
   const openJOs = jobOrders.filter(function(j) { return j.status === "Open"; }).length;
@@ -159,16 +178,22 @@ function Dashboard() {
   const totalPlacements = jobOrders.reduce(function(s, j) { return s + (j.total_placements || 0); }, 0);
   const convRate = totalFRI ? Math.round((totalPlacements / totalFRI) * 100) : 0;
 
+  const qGoals = { Q1: goals.q1_goal || REVENUE_GOAL/4, Q2: goals.q2_goal || REVENUE_GOAL/4, Q3: goals.q3_goal || REVENUE_GOAL/4, Q4: goals.q4_goal || REVENUE_GOAL/4 };
   const quarters = ["Q1", "Q2", "Q3", "Q4"].map(function(q) {
-    return { q: q, landed: placements.filter(function(p) { return p.quarter === q && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0) };
+    var placementLanded = placements.filter(function(p) { return p.quarter === q && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
+    var suppLanded = suppRevenue.filter(function(r) { return r.quarter === q && r.year === 2026; }).reduce(function(s, r) { return s + (r.amount || 0); }, 0);
+    var engagementLanded = jobOrders.filter(function(j) { return j.engagement_fee_quarter === q && j.engagement_fee_year === 2026; }).reduce(function(s, j) { return s + (j.engagement_fee || 0); }, 0);
+    return { q: q, landed: placementLanded + suppLanded + engagementLanded, goal: qGoals[q] };
   });
 
   const regions = ["Americas", "EMEA", "APAC"].map(function(r) {
+    var suppRegion = suppRevenue.filter(function(s) { return s.region === r && s.year === 2026; }).reduce(function(acc, s) { return acc + (s.amount || 0); }, 0);
+    var engagementRegion = jobOrders.filter(function(j) { return j.region === r && j.engagement_fee_year === 2026; }).reduce(function(s, j) { return s + (j.engagement_fee || 0); }, 0);
     return {
       r: r,
       count: placements.filter(function(p) { return p.region === r; }).length,
       intentional: placements.filter(function(p) { return p.region === r && p.intentional; }).length,
-      revenue: placements.filter(function(p) { return p.region === r; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0),
+      revenue: placements.filter(function(p) { return p.region === r; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0) + suppRegion + engagementRegion,
     };
   });
 
@@ -179,17 +204,16 @@ function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(135px,1fr))", gap: 10, marginBottom: 10 }}>
           <StatCard label="Revenue Goal" value={fmtDollar(REVENUE_GOAL)} />
           <StatCard label="YTD Landed" value={fmtDollar(ytd)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
-          <StatCard label="Engaged" value={fmtDollar(engaged)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
-          <StatCard label="Supplemental" value={fmtDollar(supplemental)} color={B.muted} />
+          <StatCard label="Engagement Fees" value={fmtDollar(engagementFeeTotal)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} sub="upfront fees collected" />
+          <StatCard label="Supplemental" value={fmtDollar(suppTotal)} color={B.muted} sub="non-placement revenue" />
           <StatCard label="% of Goal" value={fmtPct(ytd, REVENUE_GOAL)} sub={fmtDollar(ytd) + " / " + fmtDollar(REVENUE_GOAL)} color={B.lightBlue} light={B.lightBlueLight} border={B.lightBlueBorder} />
         </div>
         <PBar value={ytd} max={REVENUE_GOAL} color={B.darkBlue} />
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-          <span>{fmtDollar(ytd)} landed</span>
+          <span>{fmtDollar(ytd)} total revenue</span>
           <span>{fmtDollar(REVENUE_GOAL - ytd)} remaining</span>
         </div>
       </div>
-
       <div>
         <SLabel>Quarterly breakdown</SLabel>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
@@ -198,14 +222,13 @@ function Dashboard() {
               <div key={item.q} style={{ background: B.surface, border: "1px solid " + B.border, borderRadius: 10, padding: "12px 14px" }}>
                 <div style={{ fontSize: 11, color: B.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.q}</div>
                 <div style={{ fontSize: 17, fontWeight: 700, color: B.darkBlue, margin: "4px 0" }}>{fmtDollar(item.landed)}</div>
-                <PBar value={item.landed} max={REVENUE_GOAL / 4} color={B.lightBlue} />
-                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{fmtPct(item.landed, REVENUE_GOAL / 4)} of target</div>
+                <PBar value={item.landed} max={item.goal} color={B.lightBlue} />
+                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{fmtPct(item.landed, item.goal)} of target</div>
               </div>
             );
           })}
         </div>
       </div>
-
       <div>
         <SLabel>Placements</SLabel>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(135px,1fr))", gap: 10 }}>
@@ -217,7 +240,6 @@ function Dashboard() {
           <StatCard label="% Intentional" value={fmtPct(totalInt, totalPlaced)} color={B.muted} />
         </div>
       </div>
-
       <div>
         <SLabel>Pipeline conversion</SLabel>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(135px,1fr))", gap: 10 }}>
@@ -228,7 +250,6 @@ function Dashboard() {
           <StatCard label="FRI to Placed" value={convRate + "%"} color={B.green} light={B.greenLight} border={B.greenBorder} sub="conversion rate" />
         </div>
       </div>
-
       <div>
         <SLabel>Regional performance</SLabel>
         <div style={{ background: "#fff", border: "1px solid " + B.border, borderRadius: 12, overflow: "hidden" }}>
