@@ -201,7 +201,7 @@ function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(135px,1fr))", gap: 10, marginBottom: 10 }}>
           <StatCard label="Revenue Goal" value={fmtDollar(REVENUE_GOAL)} />
           <StatCard label="YTD Landed" value={fmtDollar(ytd)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
-          <StatCard label="Engaged" value={fmtDollar(engaged)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
+          
           <StatCard label="Engagement Fees" value={fmtDollar(engagementFeeTotal)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} sub="upfront fees collected" />
           <StatCard label="Supplemental" value={fmtDollar(suppTotal)} color={B.muted} sub="non-placement revenue" />
           <StatCard label="% of Goal" value={fmtPct(ytd, REVENUE_GOAL)} sub={fmtDollar(ytd) + " / " + fmtDollar(REVENUE_GOAL)} color={B.lightBlue} light={B.lightBlueLight} border={B.lightBlueBorder} />
