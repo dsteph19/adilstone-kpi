@@ -1,30 +1,34 @@
 import { useState, useEffect } from "react";
-import ReactDOM from "react-dom/client";
 
-const PROXY = "/.netlify/functions/supabase-proxy";
+const SUPABASE_URL = "https://yzsudrdfcebhoxfpdtys.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6c3VkcmRmY2ViaG94ZnBkdHlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Nzk0MTUsImV4cCI6MjA5MjQ1NTQxNX0._zzgn0dNYNUhbKIslm7n67R05cauYl-Lqp3JuF9b0CQ";
 
 async function sbGet(table, qs) {
-  const params = "table=" + table + (qs ? "&qs=" + encodeURIComponent(qs) : "");
-  const res = await fetch(PROXY + "?" + params);
+  const url = SUPABASE_URL + "/rest/v1/" + table + "?select=*" + (qs ? "&" + qs : "");
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
+  });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 async function sbPost(table, body) {
-  const res = await fetch(PROXY + "?table=" + table + "&qs=select=*", {
+  const url = SUPABASE_URL + "/rest/v1/" + table + "?select=*";
+  const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Prefer": "return=representation" },
-    body: JSON.stringify(body),
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY, "Content-Type": "application/json", Prefer: "return=representation" },
+    body: JSON.stringify(body)
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json().catch(() => null);
 }
 
 async function sbPatch(table, qs, body) {
-  const res = await fetch(PROXY + "?table=" + table + "&qs=" + encodeURIComponent(qs), {
+  const url = SUPABASE_URL + "/rest/v1/" + table + "?" + qs;
+  const res = await fetch(url, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json", "Prefer": "return=minimal" },
-    body: JSON.stringify(body),
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY, "Content-Type": "application/json", Prefer: "return=minimal" },
+    body: JSON.stringify(body)
   });
   if (!res.ok) throw new Error(await res.text());
 }
@@ -39,7 +43,9 @@ const B = {
   muted:"#64748b", border:"#e2e8f0", surface:"#f8fafc",
 };
 
-
+const REVENUE_GOAL = 850000;
+const PLACEMENT_GOAL = 32;
+const INTENTIONAL_GOAL = 14;
 const WEEK_START = "2026-04-20";
 
 function fmtDollar(n) { return "$" + Number(n || 0).toLocaleString(); }
@@ -131,26 +137,12 @@ function ErrBanner({ msg }) {
 function Dashboard() {
   const [placements, setPlacements] = useState([]);
   const [jobOrders, setJobOrders] = useState([]);
-  const [goals, setGoals] = useState({ revenue_goal: 0, placement_goal: 0, intentional_goal: 0 });
-  const [suppRevenue, setSuppRevenue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   useEffect(function() {
-    Promise.all([
-      sbGet("placements"),
-      sbGet("job_orders"),
-      sbGet("settings"),
-      sbGet("supplemental_revenue"),
-    ])
-      .then(function(results) {
-        setPlacements(results[0]);
-        setJobOrders(results[1]);
-        var g = {};
-        results[2].forEach(function(row) { g[row.key] = Number(row.value); });
-        setGoals(g);
-        setSuppRevenue(results[3]);
-      })
+    Promise.all([sbGet("placements"), sbGet("job_orders")])
+      .then(function(results) { setPlacements(results[0]); setJobOrders(results[1]); })
       .catch(function(e) { setErr("Could not load dashboard: " + e.message); })
       .finally(function() { setLoading(false); });
   }, []);
@@ -158,15 +150,9 @@ function Dashboard() {
   if (loading) return <Spinner />;
   if (err) return <ErrBanner msg={err} />;
 
-  var REVENUE_GOAL = goals.revenue_goal || 0;
-  var PLACEMENT_GOAL = goals.placement_goal || 0;
-  var INTENTIONAL_GOAL = goals.intentional_goal || 0;
-
-  const ytdPlacements = placements.filter(function(p) { return p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
+  const ytd = placements.filter(function(p) { return p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
   const engaged = placements.filter(function(p) { return p.placement_type === "Engaged" && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
-  const suppTotal = suppRevenue.filter(function(r) { return r.year === 2026; }).reduce(function(s, r) { return s + (r.amount || 0); }, 0);
-  const engagementFeeTotal = jobOrders.filter(function(j) { return j.engagement_fee_year === 2026; }).reduce(function(s, j) { return s + (j.engagement_fee || 0); }, 0);
-  const ytd = ytdPlacements + suppTotal + engagementFeeTotal;
+  const supplemental = placements.filter(function(p) { return p.placement_type === "Supplemental" && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
   const totalPlaced = placements.length;
   const totalInt = placements.filter(function(p) { return p.intentional; }).length;
   const openJOs = jobOrders.filter(function(j) { return j.status === "Open"; }).length;
@@ -175,22 +161,16 @@ function Dashboard() {
   const totalPlacements = jobOrders.reduce(function(s, j) { return s + (j.total_placements || 0); }, 0);
   const convRate = totalFRI ? Math.round((totalPlacements / totalFRI) * 100) : 0;
 
-  const qGoals = { Q1: goals.q1_goal || REVENUE_GOAL/4, Q2: goals.q2_goal || REVENUE_GOAL/4, Q3: goals.q3_goal || REVENUE_GOAL/4, Q4: goals.q4_goal || REVENUE_GOAL/4 };
   const quarters = ["Q1", "Q2", "Q3", "Q4"].map(function(q) {
-    var placementLanded = placements.filter(function(p) { return p.quarter === q && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
-    var suppLanded = suppRevenue.filter(function(r) { return r.quarter === q && r.year === 2026; }).reduce(function(s, r) { return s + (r.amount || 0); }, 0);
-    var engagementLanded = jobOrders.filter(function(j) { return j.engagement_fee_quarter === q && j.engagement_fee_year === 2026; }).reduce(function(s, j) { return s + (j.engagement_fee || 0); }, 0);
-    return { q: q, landed: placementLanded + suppLanded + engagementLanded, goal: qGoals[q] };
+    return { q: q, landed: placements.filter(function(p) { return p.quarter === q && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0) };
   });
 
   const regions = ["Americas", "EMEA", "APAC"].map(function(r) {
-    var suppRegion = suppRevenue.filter(function(s) { return s.region === r && s.year === 2026; }).reduce(function(acc, s) { return acc + (s.amount || 0); }, 0);
-    var engagementRegion = jobOrders.filter(function(j) { return j.region === r && j.engagement_fee_year === 2026; }).reduce(function(s, j) { return s + (j.engagement_fee || 0); }, 0);
     return {
       r: r,
       count: placements.filter(function(p) { return p.region === r; }).length,
       intentional: placements.filter(function(p) { return p.region === r && p.intentional; }).length,
-      revenue: placements.filter(function(p) { return p.region === r; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0) + suppRegion + engagementRegion,
+      revenue: placements.filter(function(p) { return p.region === r; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0),
     };
   });
 
@@ -201,17 +181,17 @@ function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(135px,1fr))", gap: 10, marginBottom: 10 }}>
           <StatCard label="Revenue Goal" value={fmtDollar(REVENUE_GOAL)} />
           <StatCard label="YTD Landed" value={fmtDollar(ytd)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
-          
-          <StatCard label="Engagement Fees" value={fmtDollar(engagementFeeTotal)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} sub="upfront fees collected" />
-          <StatCard label="Supplemental" value={fmtDollar(suppTotal)} color={B.muted} sub="non-placement revenue" />
+          <StatCard label="Engaged" value={fmtDollar(engaged)} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
+          <StatCard label="Supplemental" value={fmtDollar(supplemental)} color={B.muted} />
           <StatCard label="% of Goal" value={fmtPct(ytd, REVENUE_GOAL)} sub={fmtDollar(ytd) + " / " + fmtDollar(REVENUE_GOAL)} color={B.lightBlue} light={B.lightBlueLight} border={B.lightBlueBorder} />
         </div>
         <PBar value={ytd} max={REVENUE_GOAL} color={B.darkBlue} />
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-          <span>{fmtDollar(ytd)} total revenue</span>
+          <span>{fmtDollar(ytd)} landed</span>
           <span>{fmtDollar(REVENUE_GOAL - ytd)} remaining</span>
         </div>
       </div>
+
       <div>
         <SLabel>Quarterly breakdown</SLabel>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
@@ -220,13 +200,14 @@ function Dashboard() {
               <div key={item.q} style={{ background: B.surface, border: "1px solid " + B.border, borderRadius: 10, padding: "12px 14px" }}>
                 <div style={{ fontSize: 11, color: B.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>{item.q}</div>
                 <div style={{ fontSize: 17, fontWeight: 700, color: B.darkBlue, margin: "4px 0" }}>{fmtDollar(item.landed)}</div>
-                <PBar value={item.landed} max={item.goal} color={B.lightBlue} />
-                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{fmtPct(item.landed, item.goal)} of target</div>
+                <PBar value={item.landed} max={REVENUE_GOAL / 4} color={B.lightBlue} />
+                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{fmtPct(item.landed, REVENUE_GOAL / 4)} of target</div>
               </div>
             );
           })}
         </div>
       </div>
+
       <div>
         <SLabel>Placements</SLabel>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(135px,1fr))", gap: 10 }}>
@@ -238,6 +219,7 @@ function Dashboard() {
           <StatCard label="% Intentional" value={fmtPct(totalInt, totalPlaced)} color={B.muted} />
         </div>
       </div>
+
       <div>
         <SLabel>Pipeline conversion</SLabel>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(135px,1fr))", gap: 10 }}>
@@ -248,6 +230,7 @@ function Dashboard() {
           <StatCard label="FRI to Placed" value={convRate + "%"} color={B.green} light={B.greenLight} border={B.greenBorder} sub="conversion rate" />
         </div>
       </div>
+
       <div>
         <SLabel>Regional performance</SLabel>
         <div style={{ background: "#fff", border: "1px solid " + B.border, borderRadius: 12, overflow: "hidden" }}>
@@ -276,6 +259,7 @@ function Dashboard() {
     </div>
   );
 }
+
 // ── WEEKLY ENTRY ───────────────────────────────────────────────────────────
 function WeeklyEntry() {
   const [recruiters, setRecruiters] = useState([]);
@@ -811,6 +795,281 @@ function Leaderboard() {
   );
 }
 
+// ── GUIDE ──────────────────────────────────────────────────────────────────
+function Guide() {
+  const [section, setSection] = useState("dashboard");
+  const sections = [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "weekly", label: "Weekly Entry" },
+    { id: "joborders", label: "Job Orders" },
+    { id: "leaderboard", label: "Leaderboard" },
+    { id: "admin", label: "Admin Guide" },
+    { id: "glossary", label: "Definitions" },
+  ];
+
+  function NavBtn({ id, label }) {
+    return (
+      <button onClick={function() { setSection(id); }} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid", cursor: "pointer", fontSize: 13, fontWeight: section === id ? 600 : 400, background: section === id ? B.darkBlue : "#fff", color: section === id ? "#fff" : B.muted, borderColor: section === id ? B.darkBlue : B.border, whiteSpace: "nowrap" }}>
+        {label}
+      </button>
+    );
+  }
+
+  function Block({ title, children }) {
+    return (
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: B.lightBlue, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>{title}</div>
+        {children}
+      </div>
+    );
+  }
+
+  function GTable({ headers, rows }) {
+    return (
+      <div style={{ background: "#fff", border: "1px solid " + B.border, borderRadius: 10, overflow: "hidden", marginBottom: 16 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead><tr style={{ background: B.darkBlue }}>{headers.map(function(h) { return <TH key={h}>{h}</TH>; })}</tr></thead>
+          <tbody>{rows.map(function(row, i) {
+            return (
+              <tr key={i} style={{ borderBottom: "1px solid " + B.border, background: i % 2 === 0 ? "#fff" : B.surface }}>
+                {row.map(function(cell, j) { return <TD key={j} style={j === 0 ? { fontWeight: 600, color: B.darkBlue, whiteSpace: "nowrap" } : {}}>{cell}</TD>; })}
+              </tr>
+            );
+          })}</tbody>
+        </table>
+      </div>
+    );
+  }
+
+  function Callout({ children, type }) {
+    var bg = type === "warn" ? B.amberLight : B.lightBlueLight;
+    var border = type === "warn" ? B.amberBorder : B.lightBlueBorder;
+    var color = type === "warn" ? "#92400e" : B.darkBlue;
+    return <div style={{ background: bg, border: "1px solid " + border, borderRadius: 8, padding: "12px 16px", fontSize: 13, color: color, lineHeight: 1.6, marginBottom: 16 }}>{children}</div>;
+  }
+
+  function Step({ n, children }) {
+    return (
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{ width: 24, height: 24, borderRadius: "50%", background: B.darkBlue, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{n}</div>
+        <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, paddingTop: 2 }}>{children}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+      {/* Nav */}
+      <div style={{ flex: "0 0 150px", display: "flex", flexDirection: "column", gap: 6 }}>
+        {sections.map(function(s) { return <NavBtn key={s.id} id={s.id} label={s.label} />; })}
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+
+        {section === "dashboard" && (
+          <div>
+            <Block title="Financial cards">
+              <GTable headers={["Card", "What it means"]} rows={[
+                ["Revenue Goal", "Annual revenue target set by leadership"],
+                ["YTD Landed", "Total revenue this year — placement fees + engagement fees + supplemental combined"],
+                ["Engagement Fees", "Upfront fees collected when an engaged role is signed, regardless of placement status"],
+                ["Supplemental", "Revenue not tied to a placement — retainers, consulting, referrals"],
+                ["% of Goal", "YTD Landed divided by Revenue Goal"],
+              ]} />
+            </Block>
+            <Block title="Quarterly breakdown">
+              <Callout>Each quarter shows total revenue landed against that quarter's individual target. Targets can differ across quarters and are updated by admin in Supabase — no code changes needed.</Callout>
+            </Block>
+            <Block title="Placements">
+              <GTable headers={["Card", "What it means"]} rows={[
+                ["Goal", "Annual placement count target"],
+                ["Total Placed", "Number of placements logged this year"],
+                ["% of Goal", "Total placed divided by placement goal"],
+                ["Intentional Goal", "Annual target for intentional placements"],
+                ["Total Intentional", "Placements flagged as intentional by admin"],
+                ["% Intentional", "Intentional placements as a share of all placements"],
+              ]} />
+            </Block>
+            <Block title="Pipeline conversion">
+              <GTable headers={["Card", "What it means"]} rows={[
+                ["Open Job Orders", "Roles currently with Open status"],
+                ["Total Submits", "Cumulative submissions across all job orders"],
+                ["Total FRI", "Cumulative first round interviews across all job orders"],
+                ["Submit to FRI", "Percentage of submissions that progressed to an FRI"],
+                ["FRI to Placed", "Percentage of FRIs that resulted in a placement"],
+              ]} />
+            </Block>
+            <Block title="Regional performance">
+              <p style={{ fontSize: 13, color: "#374151" }}>Shows Americas, EMEA, and APAC broken down by placement count, share of total placements, total revenue (all three streams), and intentional placement count. All figures update automatically.</p>
+            </Block>
+          </div>
+        )}
+
+        {section === "weekly" && (
+          <div>
+            <Callout><b>Submit once per week.</b> The system accepts one submission per recruiter per week. Missing submissions are flagged automatically and visible to leadership.</Callout>
+            <Block title="How to submit">
+              <Step n="1">Go to the <b>Weekly Entry</b> tab.</Step>
+              <Step n="2">Select your name from the <b>Recruiter</b> dropdown. Only recruiters who have not yet submitted for the current week appear.</Step>
+              <Step n="3">The current week is shown automatically — you cannot change it.</Step>
+              <Step n="4">For each job order you worked on, click <b>+ Add candidate</b> and enter the candidate's full name.</Step>
+              <Step n="5">Check the relevant boxes — <b>Sub</b> (submitted to client), <b>FRI</b> (first round interview held), <b>Placed</b> (placement confirmed). Checking FRI auto-checks Submitted. Checking Placed auto-checks both.</Step>
+              <Step n="6">Add multiple candidates per job order as needed. Remove any with the × button.</Step>
+              <Step n="7">Enter the number of <b>Placements</b> at the bottom and any optional notes.</Step>
+              <Step n="8">Click <b>Submit weekly KPIs</b>. You will see your points earned and current streak.</Step>
+            </Block>
+            <Block title="All job orders are visible">
+              <p style={{ fontSize: 13, color: "#374151" }}>Every open and on-hold job order appears in the form — not just roles assigned to you. This allows multiple recruiters to log activity against the same role when collaborating. Your candidate entries are always tagged with your name.</p>
+            </Block>
+            <Block title="Weekly targets">
+              <GTable headers={["Metric", "Default target"]} rows={[
+                ["Weekly Submits", "2 per week"],
+                ["Weekly FRI", "1 per week"],
+              ]} />
+              <p style={{ fontSize: 13, color: "#374151" }}>Targets turn dark blue in the summary cards when you have hit them for the week. Individual targets can be adjusted by your manager in Supabase.</p>
+            </Block>
+          </div>
+        )}
+
+        {section === "joborders" && (
+          <div>
+            <Block title="Column reference">
+              <GTable headers={["Column", "What it means"]} rows={[
+                ["Role", "Job title being recruited for"],
+                ["Client", "Hiring organization"],
+                ["Recruiter", "Primary owner of the role"],
+                ["Submits", "Total candidate submissions logged to date"],
+                ["FRI", "Total first round interviews logged to date"],
+                ["Sub to FRI", "Submission to FRI conversion rate — green above 50%, amber above 0%"],
+                ["FRI to Placed", "FRI to placement conversion rate"],
+                ["Days Open", "How long the role has been open — red when over 30 days"],
+                ["Status", "Open, On Hold, Filled, or Cancelled"],
+                ["INT badge", "Marks roles flagged as Intentional"],
+              ]} />
+            </Block>
+            <Block title="Detail view">
+              <p style={{ fontSize: 13, color: "#374151" }}>Click <b>View →</b> on any role to open a detailed view showing all role metrics, the full candidate pipeline with stage badges (Submitted / FRI / Placed), and a conversion funnel with rates for that role.</p>
+            </Block>
+            <Block title="Filtering">
+              <p style={{ fontSize: 13, color: "#374151" }}>Use the status filter buttons at the top to view only Open, On Hold, Filled, or Cancelled roles.</p>
+            </Block>
+          </div>
+        )}
+
+        {section === "leaderboard" && (
+          <div>
+            <Callout>The leaderboard recognizes consistency and effort — not just outcomes. Points are earned for submitting on time, hitting activity targets, and maintaining streaks over time.</Callout>
+            <Block title="How points are earned">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+                {[["On-time submission","+5"],["Complete submission","+3"],["Submits target hit","+5"],["FRI target hit","+5"],["Placement logged","+10"],["2-week streak bonus","+3"],["4-week streak bonus","+7"],["8-week streak bonus","+15"]].map(function(item) {
+                  return (
+                    <div key={item[0]} style={{ display: "flex", justifyContent: "space-between", background: B.surface, border: "1px solid " + B.border, borderRadius: 8, padding: "9px 12px" }}>
+                      <span style={{ fontSize: 12, color: "#374151" }}>{item[0]}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: B.darkBlue }}>{item[1]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </Block>
+            <Block title="Badges">
+              <GTable headers={["Badge", "Requirement"]} rows={[
+                ["🥉 Bronze", "2 consecutive on-time weeks"],
+                ["🥈 Silver", "4 consecutive on-time weeks"],
+                ["🥇 Gold", "8 consecutive on-time weeks"],
+              ]} />
+            </Block>
+            <Block title="Leaderboard columns">
+              <GTable headers={["Column", "What it means"]} rows={[
+                ["Points", "Cumulative points earned all-time"],
+                ["Streak", "Longest consecutive on-time submission streak"],
+                ["Submits / FRI / Placements", "Cumulative activity totals"],
+                ["On-time %", "Percentage of submissions made on time"],
+              ]} />
+            </Block>
+          </div>
+        )}
+
+        {section === "admin" && (
+          <div>
+            <Callout><b>All data is managed in Supabase.</b> Go to supabase.com → sign in → adilstone-kpi project → Table Editor. Changes appear in the app immediately on the next page load.</Callout>
+            <Block title="Recruiters table">
+              <GTable headers={["Task", "What to do"]} rows={[
+                ["Add a recruiter", "Insert a new row and fill in all fields"],
+                ["Deactivate a recruiter", "Set active to false — history is kept but they disappear from the entry form"],
+                ["Update weekly targets", "Edit weekly_submits_target or weekly_fri_target"],
+              ]} />
+            </Block>
+            <Block title="Job orders table">
+              <GTable headers={["Task", "What to do"]} rows={[
+                ["Add a job order", "Insert a new row — fill in role, client, region, recruiter_id, status, type, fee, date_received"],
+                ["Mark as filled", "Change status to Filled"],
+                ["Put on hold", "Change status to On Hold"],
+                ["Record engagement fee", "Fill in engagement_fee, engagement_fee_date, engagement_fee_quarter, engagement_fee_year"],
+                ["Update days open", "Edit days_open — update weekly for open roles"],
+              ]} />
+            </Block>
+            <Block title="Placements table">
+              <GTable headers={["Task", "What to do"]} rows={[
+                ["Add a placement", "Insert a new row — required: candidate_name, recruiter_id, start_date, fee, placement_type, quarter, year, region"],
+                ["Mark as intentional", "Set intentional to true"],
+                ["Link to a job order", "Enter the job order UUID in job_order_id"],
+              ]} />
+            </Block>
+            <Block title="Supplemental revenue table">
+              <GTable headers={["Field", "What to enter"]} rows={[
+                ["description", "Brief note e.g. Q2 retainer — FinCo"],
+                ["amount", "Number only — no $ sign or commas"],
+                ["region", "Americas, EMEA, or APAC"],
+                ["date", "YYYY-MM-DD format"],
+                ["quarter", "Q1, Q2, Q3, or Q4"],
+                ["year", "e.g. 2026"],
+                ["category", "Retainer, Consulting, Referral, etc."],
+              ]} />
+            </Block>
+            <Block title="Settings table — updating goals">
+              <GTable headers={["Key", "What it controls"]} rows={[
+                ["revenue_goal", "Annual revenue target"],
+                ["placement_goal", "Annual placement count target"],
+                ["intentional_goal", "Annual intentional placement target"],
+                ["q1_goal through q4_goal", "Individual quarterly revenue targets"],
+              ]} />
+            </Block>
+            <Block title="Pushing app updates">
+              <p style={{ fontSize: 13, color: "#374151", marginBottom: 10 }}>When code changes are made in VS Code, run these in Terminal:</p>
+              <div style={{ background: B.black, color: "#e2e8f0", borderRadius: 8, padding: "12px 16px", fontFamily: "monospace", fontSize: 12, lineHeight: 2 }}>
+                git add .<br />
+                git commit -m "Description of change"<br />
+                git push
+              </div>
+            </Block>
+          </div>
+        )}
+
+        {section === "glossary" && (
+          <div>
+            <Block title="Key definitions">
+              <GTable headers={["Term", "Definition"]} rows={[
+                ["Submit", "A candidate formally submitted to a client for consideration on a specific role"],
+                ["FRI", "First Round Interview — a candidate who has progressed to a first interview with the client"],
+                ["Intentional placement", "A placement that meets your organization's internal criteria for an intentional hire"],
+                ["Engaged role", "A job order where the client has paid an upfront engagement fee to retain Adilstone's services"],
+                ["Contingent role", "A job order where Adilstone's fee is contingent on a successful placement only"],
+                ["Engagement fee", "Upfront fee collected when a new engaged role is signed — counts toward YTD revenue immediately"],
+                ["Supplemental revenue", "Revenue not tied to a placement — retainers, consulting fees, referral income"],
+                ["YTD Landed", "Year-to-date total revenue — placement fees + engagement fees + supplemental revenue"],
+                ["Streak", "Number of consecutive weeks a recruiter has submitted on time"],
+                ["On-time submission", "A weekly KPI entry submitted before the weekly deadline"],
+              ]} />
+            </Block>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 // ── SETUP GUIDE ────────────────────────────────────────────────────────────
 const SQL_SCRIPT = [
   "-- Run this in Supabase → SQL Editor",
@@ -953,11 +1212,11 @@ function SetupGuide() {
 }
 
 // ── ROOT ───────────────────────────────────────────────────────────────────
-const isConfigured = true;
+const isConfigured = SUPABASE_URL !== "YOUR_SUPABASE_URL" && SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY";
 
 export default function App() {
   const [tab, setTab] = useState(isConfigured ? "Dashboard" : "Setup");
-  const tabs = ["Dashboard", "Weekly Entry", "Job Orders", "Leaderboard", "Setup"];
+  const tabs = ["Dashboard", "Weekly Entry", "Job Orders", "Leaderboard", "Guide", "Setup"];
 
   return (
     <div style={{ fontFamily: "system-ui,sans-serif", color: B.black, maxWidth: 1000, margin: "0 auto", padding: "16px 12px" }}>
@@ -982,8 +1241,8 @@ export default function App() {
       {tab === "Weekly Entry" && <WeeklyEntry />}
       {tab === "Job Orders" && <JobOrders />}
       {tab === "Leaderboard" && <Leaderboard />}
+      {tab === "Guide" && <Guide />}
       {tab === "Setup" && <SetupGuide />}
     </div>
   );
-}const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+}
