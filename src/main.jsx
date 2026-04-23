@@ -131,33 +131,18 @@ function ErrBanner({ msg }) {
 function Dashboard() {
   const [placements, setPlacements] = useState([]);
   const [jobOrders, setJobOrders] = useState([]);
-  const [goals, setGoals] = useState({ revenue_goal: 0, placement_goal: 0, intentional_goal: 0 });
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   useEffect(function() {
-    Promise.all([
-      sbGet("placements"),
-      sbGet("job_orders"),
-      sbGet("settings"),
-    ])
-      .then(function(results) {
-        setPlacements(results[0]);
-        setJobOrders(results[1]);
-        var g = {};
-        results[2].forEach(function(row) { g[row.key] = Number(row.value); });
-        setGoals(g);
-      })
+    Promise.all([sbGet("placements"), sbGet("job_orders")])
+      .then(function(results) { setPlacements(results[0]); setJobOrders(results[1]); })
       .catch(function(e) { setErr("Could not load dashboard: " + e.message); })
       .finally(function() { setLoading(false); });
   }, []);
 
   if (loading) return <Spinner />;
   if (err) return <ErrBanner msg={err} />;
-
-  var REVENUE_GOAL = goals.revenue_goal || 0;
-  var PLACEMENT_GOAL = goals.placement_goal || 0;
-  var INTENTIONAL_GOAL = goals.intentional_goal || 0;
 
   const ytd = placements.filter(function(p) { return p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
   const engaged = placements.filter(function(p) { return p.placement_type === "Engaged" && p.year === 2026; }).reduce(function(s, p) { return s + (p.fee || 0); }, 0);
