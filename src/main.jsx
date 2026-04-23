@@ -932,7 +932,7 @@ function SetupGuide() {
 }
 
 // ── ROOT ───────────────────────────────────────────────────────────────────
-const isConfigured = SUPABASE_URL !== "YOUR_SUPABASE_URL" && SUPABASE_ANON_KEY !== "YOUR_SUPABASE_ANON_KEY";
+const isConfigured = true;
 
 export default function App() {
   const [tab, setTab] = useState(isConfigured ? "Dashboard" : "Setup");
