@@ -28,35 +28,7 @@ async function sbPatch(table, qs, body) {
   if (!res.ok) throw new Error(await res.text());
 }
 
-async function sbGet(table, qs) {
-  const url = SUPABASE_URL + "/rest/v1/" + table + "?select=*" + (qs ? "&" + qs : "");
-  const res = await fetch(url, {
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
-async function sbPost(table, body) {
-  const url = SUPABASE_URL + "/rest/v1/" + table + "?select=*";
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY, "Content-Type": "application/json", Prefer: "return=representation" },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json().catch(() => null);
-}
-
-async function sbPatch(table, qs, body) {
-  const url = SUPABASE_URL + "/rest/v1/" + table + "?" + qs;
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY, "Content-Type": "application/json", Prefer: "return=minimal" },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) throw new Error(await res.text());
-}
 
 const B = {
   darkBlue:"#003763", lightBlue:"#42B4E3", black:"#010006",
