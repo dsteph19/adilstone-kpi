@@ -44,7 +44,17 @@ const B = {
 const REVENUE_GOAL = 850000;
 const PLACEMENT_GOAL = 32;
 const INTENTIONAL_GOAL = 14;
-const WEEK_START = "2026-04-20";
+function getWeekStart() {
+  var now = new Date();
+  var day = now.getDay();
+  var diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  var monday = new Date(now.setDate(diff));
+  var yyyy = monday.getFullYear();
+  var mm = String(monday.getMonth() + 1).padStart(2, "0");
+  var dd = String(monday.getDate()).padStart(2, "0");
+  return yyyy + "-" + mm + "-" + dd;
+}
+const WEEK_START = getWeekStart();
 
 function fmtDollar(n) { return "$" + Number(n || 0).toLocaleString(); }
 function fmtPct(n, d) { return d ? Math.round((n / d) * 100) + "%" : "0%"; }
