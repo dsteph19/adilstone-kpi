@@ -683,7 +683,7 @@ function JobOrders() {
   }
 
   const statuses = ["All", "Open", "On Hold", "Filled", "Cancelled"];
-  const filtered = filter === "All" ? jobOrders : jobOrders.filter(function(j) { return j.status === filter; });
+  const filtered = (filter === "All" ? jobOrders : jobOrders.filter(function(j) { return j.status === filter; })).slice().sort(function(a, b) { return new Date(b.date_received) - new Date(a.date_received); });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
