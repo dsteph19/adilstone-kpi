@@ -307,7 +307,7 @@ function WeeklyEntry() {
   useEffect(function() {
     Promise.all([
       sbGet("recruiters", "active=eq.true"),
-      sbGet("job_orders", "status=in.(\"Open\",\"On Hold\")"),
+      sbGet("job_orders_view", "status=in.(\"Open\",\"On Hold\")"),
       sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START),
     ])
       .then(function(results) { setRecruiters(results[0]); setJobOrders(results[1]); setEntries(results[2]); })
