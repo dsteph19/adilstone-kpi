@@ -584,7 +584,7 @@ function JobOrders() {
   const [detail, setDetail] = useState(null);
 
   useEffect(function() {
-    Promise.all([sbGet("job_orders"), sbGet("recruiters"), sbGet("candidates")])
+    Promise.all([sbGet("job_orders_view"), sbGet("recruiters"), sbGet("candidates")])
       .then(function(results) { setJobOrders(results[0]); setRecruiters(results[1]); setCandidates(results[2]); })
       .catch(function(e) { setErr("Could not load job orders: " + e.message); })
       .finally(function() { setLoading(false); });
