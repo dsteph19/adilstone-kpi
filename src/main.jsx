@@ -1242,7 +1242,7 @@ export default function App() {
       <div style={{ background: B.darkBlue, borderRadius: 12, padding: "18px 22px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }}>ADILSTONE GROUP</div>
-          <div style={{ fontSize: 12, color: B.lightBlue, marginTop: 2 }}>Recruiting KPI System · Week of Apr 20, 2026</div>
+          <div style={{ fontSize: 12, color: B.lightBlue, marginTop: 2 }}>Recruiting KPI System</div>
         </div>
         <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: isConfigured ? B.greenLight : B.amberLight, color: isConfigured ? B.green : B.amber, fontWeight: 600 }}>
           {isConfigured ? "Connected" : "Not connected"}
