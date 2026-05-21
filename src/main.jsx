@@ -153,7 +153,7 @@ function Dashboard() {
   useEffect(function() {
     Promise.all([
       sbGet("placements"),
-      sbGet("job_orders"),
+      sbGet("job_orders_view"),
       sbGet("settings"),
       sbGet("supplemental_revenue"),
     ])
@@ -624,7 +624,7 @@ function JobOrders() {
             <StatCard label="Placements" value={jo.total_placements || 0} color={(jo.total_placements || 0) > 0 ? B.green : B.black} light={(jo.total_placements || 0) > 0 ? B.greenLight : B.surface} border={(jo.total_placements || 0) > 0 ? B.greenBorder : B.border} />
             <StatCard label="Submit to FRI" value={friRate + "%"} color={B.lightBlue} light={B.lightBlueLight} border={B.lightBlueBorder} />
             <StatCard label="FRI to Placed" value={placeRate + "%"} color={placeRate > 0 ? B.green : B.muted} />
-            <StatCard label="Days Open" value={(jo.days_open || 0) + "d"} color={(jo.days_open || 0) > 30 ? B.red : B.green} />
+            <StatCard label="Days Open" value={(jo.days_open_calc || 0) + "d"} color={(jo.days_open_calc || 0) > 30 ? B.red : B.green} />
             <StatCard label="Fee" value={fmtDollar(jo.fee)} />
           </div>
         </div>
@@ -722,7 +722,7 @@ function JobOrders() {
                   <TD>{j.total_fri || 0}</TD>
                   <TD><span style={{ color: fr >= 50 ? B.green : fr > 0 ? B.amber : B.muted, fontWeight: 600 }}>{fr}%</span></TD>
                   <TD><span style={{ color: pr > 0 ? B.green : B.muted, fontWeight: 600 }}>{pr}%</span></TD>
-                  <TD><span style={{ color: (j.days_open || 0) > 365 ? "#9ca3af" : (j.days_open || 0) > 45 ? B.red : (j.days_open || 0) > 30 ? B.amber : B.green, fontWeight: 600 }}>{j.days_open || 0}d</span></TD>
+                  <TD><span style={{ color: (j.days_open_calc || 0) > 365 ? "#9ca3af" : (j.days_open_calc || 0) > 45 ? B.red : (j.days_open_calc || 0) > 30 ? B.amber : B.green, fontWeight: 600 }}>{j.days_open_calc || 0}d</span></TD>
                   <TD><span style={{ background: sc.bg, color: sc.text, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 99 }}>{j.status}</span></TD>
                   <TD><button onClick={function() { setDetail(j.id); }} style={{ background: B.darkBlue, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12 }}>View →</button></TD>
                 </tr>
@@ -1035,7 +1035,7 @@ function Guide() {
                 ["Mark as filled", "Change status to Filled"],
                 ["Put on hold", "Change status to On Hold"],
                 ["Record engagement fee", "Fill in engagement_fee, engagement_fee_date, engagement_fee_quarter, engagement_fee_year"],
-                ["Update days open", "Edit days_open — update weekly for open roles"],
+                ["Update days open", "Edit days_open_calc — update weekly for open roles"],
               ]} />
             </Block>
             <Block title="Placements table">
@@ -1128,7 +1128,7 @@ const SQL_SCRIPT = [
   "  date_received date,",
   "  status text default 'Open',",
   "  fee numeric,",
-  "  days_open int,",
+  "  days_open_calc int,",
   "  intentional_role boolean default false,",
   "  total_submits int default 0,",
   "  total_fri int default 0,",
