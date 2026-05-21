@@ -722,7 +722,7 @@ function JobOrders() {
                   <TD>{j.total_fri || 0}</TD>
                   <TD><span style={{ color: fr >= 50 ? B.green : fr > 0 ? B.amber : B.muted, fontWeight: 600 }}>{fr}%</span></TD>
                   <TD><span style={{ color: pr > 0 ? B.green : B.muted, fontWeight: 600 }}>{pr}%</span></TD>
-                  <TD><span style={{ color: (j.days_open || 0) > 30 ? B.red : B.green, fontWeight: 600 }}>{j.days_open || 0}d</span></TD>
+                  <TD><span style={{ color: (j.days_open || 0) > 365 ? "#9ca3af" : (j.days_open || 0) > 45 ? B.red : (j.days_open || 0) > 30 ? B.amber : B.green, fontWeight: 600 }}>{j.days_open || 0}d</span></TD>
                   <TD><span style={{ background: sc.bg, color: sc.text, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 99 }}>{j.status}</span></TD>
                   <TD><button onClick={function() { setDetail(j.id); }} style={{ background: B.darkBlue, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12 }}>View →</button></TD>
                 </tr>
