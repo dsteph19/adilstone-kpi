@@ -375,7 +375,7 @@ function WeeklyEntry() {
   async function handleSubmit() {
     setFormErr("");
     if (!recId) { setFormErr("Please select a recruiter."); return; }
-    if (submittedSet.has(recId)) { setFormErr("This recruiter already submitted for this week."); return; }
+    
     setSubmitting(true);
     try {
       var scored = calcPoints();
