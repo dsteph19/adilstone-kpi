@@ -28,7 +28,13 @@ async function sbPatch(table, qs, body) {
   });
   if (!res.ok) throw new Error(await res.text());
 }
-
+async function sbDelete(table, qs) {
+  const res = await fetch(PROXY + "?table=" + table + "&qs=" + encodeURIComponent(qs), {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", "Prefer": "return=minimal" },
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
 
 
 const B = {
@@ -315,6 +321,102 @@ function WeeklyEntry() {
       .finally(function() { setLoading(false); });
   }, []);
 
+  async function handleDeleteEntry(entryId) {
+    if (!window.confirm("Delete this entry? This will remove its candidate activity and update the totals.")) return;
+    try {
+      await sbDelete("candidates", "weekly_entry_id=eq." + entryId);
+      await sbDelete("weekly_kpi_entries", "id=eq." + entryId);
+      const refreshed = await sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START);
+      setEntries(refreshed);
+    } catch (e) {
+      setFormErr("Could not delete entry: " + e.message);
+    }
+  }
+
+  async function handleDeleteEntry(entryId) {
+    if (!window.confirm("Delete this entry? This will remove its candidate activity and update the totals.")) return;
+    try {
+      await sbDelete("candidates", "weekly_entry_id=eq." + entryId);
+      await sbDelete("weekly_kpi_entries", "id=eq." + entryId);
+      const refreshed = await sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START);
+      setEntries(refreshed);
+    } catch (e) {
+      setFormErr("Could not delete entry: " + e.message);
+    }
+  }
+
+  async function handleDeleteEntry(entryId) {
+    if (!window.confirm("Delete this entry? This will remove its candidate activity and update the totals.")) return;
+    try {
+      await sbDelete("candidates", "weekly_entry_id=eq." + entryId);
+      await sbDelete("weekly_kpi_entries", "id=eq." + entryId);
+      const refreshed = await sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START);
+      setEntries(refreshed);
+    } catch (e) {
+      setFormErr("Could not delete entry: " + e.message);
+    }
+  }
+
+  async function handleDeleteEntry(entryId) {
+    if (!window.confirm("Delete this entry? This will remove its candidate activity and update the totals.")) return;
+    try {
+      await sbDelete("candidates", "weekly_entry_id=eq." + entryId);
+      await sbDelete("weekly_kpi_entries", "id=eq." + entryId);
+      const refreshed = await sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START);
+      setEntries(refreshed);
+    } catch (e) {
+      setFormErr("Could not delete entry: " + e.message);
+    }
+  }
+
+  async function handleDeleteEntry(entryId) {
+    if (!window.confirm("Delete this entry? This will remove its candidate activity and update the totals.")) return;
+    try {
+      await sbDelete("candidates", "weekly_entry_id=eq." + entryId);
+      await sbDelete("weekly_kpi_entries", "id=eq." + entryId);
+      const refreshed = await sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START);
+      setEntries(refreshed);
+    } catch (e) {
+      setFormErr("Could not delete entry: " + e.message);
+    }
+  }
+
+  async function handleDeleteEntry(entryId) {
+    if (!window.confirm("Delete this entry? This will remove its candidate activity and update the totals.")) return;
+    try {
+      await sbDelete("candidates", "weekly_entry_id=eq." + entryId);
+      await sbDelete("weekly_kpi_entries", "id=eq." + entryId);
+      const refreshed = await sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START);
+      setEntries(refreshed);
+    } catch (e) {
+      setFormErr("Could not delete entry: " + e.message);
+    }
+  }
+
+  async function handleDeleteEntry(entryId) {
+    if (!window.confirm("Delete this entry? This will remove its candidate activity and update the totals.")) return;
+    try {
+      await sbDelete("candidates", "weekly_entry_id=eq." + entryId);
+      await sbDelete("weekly_kpi_entries", "id=eq." + entryId);
+      const refreshed = await sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START);
+      setEntries(refreshed);
+    } catch (e) {
+      setFormErr("Could not delete entry: " + e.message);
+    }
+  }
+
+  async function handleDeleteEntry(entryId) {
+    if (!window.confirm("Delete this entry? This will remove its candidate activity and update the totals.")) return;
+    try {
+      await sbDelete("candidates", "weekly_entry_id=eq." + entryId);
+      await sbDelete("weekly_kpi_entries", "id=eq." + entryId);
+      const refreshed = await sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START);
+      setEntries(refreshed);
+    } catch (e) {
+      setFormErr("Could not delete entry: " + e.message);
+    }
+  }
+
   if (loading) return <Spinner />;
   if (err) return <ErrBanner msg={err} />;
 
@@ -379,22 +481,24 @@ function WeeklyEntry() {
     setSubmitting(true);
     try {
       var scored = calcPoints();
-      await sbPost("weekly_kpi_entries", {
+      var entryResult = await sbPost("weekly_kpi_entries", {
         week_start: WEEK_START, recruiter_id: recId,
         weekly_submits: totalSubmits, weekly_fri: totalFRI, weekly_placements: numPlacements,
         submitted_on_time: true, notes: notes,
         total_points: scored.pts, streak_count: scored.streak,
       });
+      var newEntryId = (entryResult && entryResult[0] && entryResult[0].id) ? entryResult[0].id : null;
       var candInserts = [];
       for (var joId in rows) {
         var named = (rows[joId] || []).filter(function(c) { return c.name.trim(); });
         if (!named.length) continue;
         named.forEach(function(c) {
-          candInserts.push({ job_order_id: joId, candidate_name: c.name.trim(), week: WEEK_START, recruiter_id: recId, submitted: c.submitted, had_fri: c.hadFRI, placed: c.placed });
+          candInserts.push({ job_order_id: joId, candidate_name: c.name.trim(), week: WEEK_START, recruiter_id: recId, weekly_entry_id: newEntryId, submitted: c.submitted, had_fri: c.hadFRI, placed: c.placed });
         });
-        
       }
       if (candInserts.length) await sbPost("candidates", candInserts);
+      var refreshedEntries = await sbGet("weekly_kpi_entries", "week_start=eq." + WEEK_START);
+      setEntries(refreshedEntries);
       setSuccess({ rec: rec, pts: scored.pts, rules: scored.rules, streak: scored.streak, submits: totalSubmits, fri: totalFRI, placements: numPlacements });
       setRecId(""); setRows({}); setNumPlacements(0); setNotes("");
     } catch (e) {
@@ -561,6 +665,27 @@ function WeeklyEntry() {
             );
           })
         }
+
+        <div style={{ marginTop: 20 }}>
+          <SLabel>{"This week's entries (" + entries.length + ")"}</SLabel>
+          {entries.length === 0
+            ? <div style={{ color: B.muted, fontSize: 13, fontStyle: "italic" }}>No entries yet.</div>
+            : entries.map(function(e) {
+              var er = recruiters.find(function(r) { return r.id === e.recruiter_id; });
+              return (
+                <div key={e.id} style={{ background: "#fff", border: "1px solid " + B.border, borderRadius: 8, padding: "8px 12px", marginBottom: 6, fontSize: 13 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <div style={{ fontWeight: 600, color: B.darkBlue }}>{er ? er.recruiter_name : "Unknown"}</div>
+                      <div style={{ color: B.muted, fontSize: 11, marginTop: 2 }}>{e.weekly_submits || 0} sub · {e.weekly_fri || 0} FRI · {e.weekly_placements || 0} placed</div>
+                    </div>
+                    <button onClick={function() { handleDeleteEntry(e.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: B.red, fontSize: 12, fontWeight: 600, padding: 0, whiteSpace: "nowrap" }}>Delete</button>
+                  </div>
+                </div>
+              );
+            })
+          }
+        </div>
       </div>
     </div>
   );
