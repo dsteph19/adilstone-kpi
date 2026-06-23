@@ -375,7 +375,7 @@ function WeeklyEntry() {
   async function handleSubmit() {
     setFormErr("");
     if (!recId) { setFormErr("Please select a recruiter."); return; }
-    
+
     setSubmitting(true);
     try {
       var scored = calcPoints();
@@ -457,7 +457,7 @@ function WeeklyEntry() {
             <select value={recId} onChange={function(e) { setRecId(e.target.value); setRows({}); }}
               style={{ width: "100%", border: "1px solid " + B.border, borderRadius: 8, padding: "8px 12px", fontSize: 14, outline: "none" }}>
               <option value="">Select recruiter…</option>
-              {recruiters.filter(function(r) { return !submittedSet.has(r.id); }).map(function(r) {
+{recruiters.map(function(r) {
                 return <option key={r.id} value={r.id}>{r.recruiter_name} ({r.regional_office})</option>;
               })}
             </select>
