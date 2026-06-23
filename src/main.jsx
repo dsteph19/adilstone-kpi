@@ -183,9 +183,9 @@ function Dashboard() {
   const totalPlaced = placements.length;
   const totalInt = placements.filter(function(p) { return p.intentional; }).length;
   const openJOs = jobOrders.filter(function(j) { return j.status === "Open"; }).length;
-  const totalSubs = jobOrders.reduce(function(s, j) { return s + (j.total_submits || 0); }, 0);
-  const totalFRI = jobOrders.reduce(function(s, j) { return s + (j.total_fri || 0); }, 0);
-  const totalPlacements = jobOrders.reduce(function(s, j) { return s + (j.total_placements || 0); }, 0);
+  const totalSubs = jobOrders.reduce(function(s, j) { return s + (j.live_submits || 0); }, 0);
+  const totalFRI = jobOrders.reduce(function(s, j) { return s + (j.live_fri || 0); }, 0);
+  const totalPlacements = jobOrders.reduce(function(s, j) { return s + (j.live_placements || 0); }, 0);
   const convRate = totalFRI ? Math.round((totalPlacements / totalFRI) * 100) : 0;
 
   const qGoals = { Q1: goals.q1_goal || REVENUE_GOAL/4, Q2: goals.q2_goal || REVENUE_GOAL/4, Q3: goals.q3_goal || REVENUE_GOAL/4, Q4: goals.q4_goal || REVENUE_GOAL/4 };
@@ -392,14 +392,7 @@ function WeeklyEntry() {
         named.forEach(function(c) {
           candInserts.push({ job_order_id: joId, candidate_name: c.name.trim(), week: WEEK_START, recruiter_id: recId, submitted: c.submitted, had_fri: c.hadFRI, placed: c.placed });
         });
-        var jo = jobOrders.find(function(j) { return j.id === joId; });
-        if (jo) {
-          await sbPatch("job_orders", "id=eq." + joId, {
-            total_submits: (jo.total_submits || 0) + named.filter(function(c) { return c.submitted; }).length,
-            total_fri: (jo.total_fri || 0) + named.filter(function(c) { return c.hadFRI; }).length,
-            total_placements: (jo.total_placements || 0) + named.filter(function(c) { return c.placed; }).length,
-          });
-        }
+        
       }
       if (candInserts.length) await sbPost("candidates", candInserts);
       setSuccess({ rec: rec, pts: scored.pts, rules: scored.rules, streak: scored.streak, submits: totalSubmits, fri: totalFRI, placements: numPlacements });
@@ -597,8 +590,8 @@ function JobOrders() {
     var jo = jobOrders.find(function(j) { return j.id === detail; });
     var rec = recruiters.find(function(r) { return r.id === jo.recruiter_id; });
     var joCands = candidates.filter(function(c) { return c.job_order_id === detail; });
-    var friRate = jo.total_submits ? Math.round(((jo.total_fri || 0) / jo.total_submits) * 100) : 0;
-    var placeRate = jo.total_fri ? Math.round(((jo.total_placements || 0) / jo.total_fri) * 100) : 0;
+    var friRate = jo.live_submits ? Math.round(((jo.live_fri || 0) / jo.live_submits) * 100) : 0;
+    var placeRate = jo.live_fri ? Math.round(((jo.live_placements || 0) / jo.live_fri) * 100) : 0;
     var sc = getStatusStyle(jo.status);
 
     const stageColors = { Placed: B.green, FRI: B.lightBlue, Submitted: B.darkBlue, "—": B.muted };
@@ -619,9 +612,9 @@ function JobOrders() {
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 10 }}>
-            <StatCard label="Total Submits" value={jo.total_submits || 0} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
-            <StatCard label="Total FRI" value={jo.total_fri || 0} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
-            <StatCard label="Placements" value={jo.total_placements || 0} color={(jo.total_placements || 0) > 0 ? B.green : B.black} light={(jo.total_placements || 0) > 0 ? B.greenLight : B.surface} border={(jo.total_placements || 0) > 0 ? B.greenBorder : B.border} />
+            <StatCard label="Total Submits" value={jo.live_submits || 0} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
+            <StatCard label="Total FRI" value={jo.live_fri || 0} color={B.darkBlue} light={B.darkBlueLight} border={B.darkBlueBorder} />
+            <StatCard label="Placements" value={jo.live_placements || 0} color={(jo.live_placements || 0) > 0 ? B.green : B.black} light={(jo.live_placements || 0) > 0 ? B.greenLight : B.surface} border={(jo.live_placements || 0) > 0 ? B.greenBorder : B.border} />
             <StatCard label="Submit to FRI" value={friRate + "%"} color={B.lightBlue} light={B.lightBlueLight} border={B.lightBlueBorder} />
             <StatCard label="FRI to Placed" value={placeRate + "%"} color={placeRate > 0 ? B.green : B.muted} />
             <StatCard label="Days Open" value={(jo.days_open_calc || 0) + "d"} color={(jo.days_open_calc || 0) > 30 ? B.red : B.green} />
@@ -664,9 +657,9 @@ function JobOrders() {
           <div style={{ marginTop: 16 }}>
             <SLabel>Conversion funnel</SLabel>
             <div style={{ display: "flex", background: B.surface, border: "1px solid " + B.border, borderRadius: 10, overflow: "hidden" }}>
-              {[["Submitted", jo.total_submits || 0, B.darkBlue], ["to FRI", jo.total_fri || 0, B.lightBlue], ["to Placed", jo.total_placements || 0, B.green]].map(function(item, i) {
+              {[["Submitted", jo.live_submits || 0, B.darkBlue], ["to FRI", jo.live_fri || 0, B.lightBlue], ["to Placed", jo.live_placements || 0, B.green]].map(function(item, i) {
                 var label = item[0], val = item[1], color = item[2];
-                var denom = i === 1 ? (jo.total_submits || 0) : (jo.total_fri || 0);
+                var denom = i === 1 ? (jo.live_submits || 0) : (jo.live_fri || 0);
                 return (
                   <div key={i} style={{ flex: 1, padding: "14px 16px", textAlign: "center", borderRight: i < 2 ? "1px solid " + B.border : "none" }}>
                     <div style={{ fontSize: 22, fontWeight: 700, color: color }}>{val}</div>
@@ -707,8 +700,8 @@ function JobOrders() {
           <tbody>
             {filtered.map(function(j) {
               var r = recruiters.find(function(x) { return x.id === j.recruiter_id; });
-              var fr = j.total_submits ? Math.round(((j.total_fri || 0) / j.total_submits) * 100) : 0;
-              var pr = j.total_fri ? Math.round(((j.total_placements || 0) / j.total_fri) * 100) : 0;
+var fr = j.live_submits ? Math.round(((j.live_fri || 0) / j.live_submits) * 100) : 0;
+              var pr = j.total_fri ? Math.round(((j.live_placements || 0) / j.total_fri) * 100) : 0;
               var sc = getStatusStyle(j.status);
               return (
                 <tr key={j.id} style={{ borderBottom: "1px solid " + B.border }}>
@@ -718,8 +711,8 @@ function JobOrders() {
                   </TD>
                   <TD style={{ color: B.muted }}>{j.client}</TD>
                   <TD>{r ? r.recruiter_name : ""}</TD>
-                  <TD>{j.total_submits || 0}</TD>
-                  <TD>{j.total_fri || 0}</TD>
+                  <TD>{j.live_submits || 0}</TD>
+                  <TD>{j.live_fri || 0}</TD>
                   <TD><span style={{ color: fr >= 50 ? B.green : fr > 0 ? B.amber : B.muted, fontWeight: 600 }}>{fr}%</span></TD>
                   <TD><span style={{ color: pr > 0 ? B.green : B.muted, fontWeight: 600 }}>{pr}%</span></TD>
                   <TD><span style={{ color: (j.days_open_calc || 0) > 365 ? "#9ca3af" : (j.days_open_calc || 0) > 45 ? B.red : (j.days_open_calc || 0) > 30 ? B.amber : B.green, fontWeight: 600 }}>{j.days_open_calc || 0}d</span></TD>
